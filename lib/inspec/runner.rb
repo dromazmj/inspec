@@ -125,9 +125,9 @@ module Inspec
     end
 
     def run_tests(with = nil)
-      status, run_data = @test_collector.run(with)
+      run_data = @test_collector.run(with)
       render_output(run_data)
-      status
+      @test_collector.exit_code
     end
 
     # determine all attributes before the execution, fetch data from secrets backend
