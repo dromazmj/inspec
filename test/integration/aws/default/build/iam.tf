@@ -115,3 +115,128 @@ resource "aws_iam_group" "administrators" {
 output "iam_group_administrators" {
   value = "${aws_iam_group.administrators.name}"
 }
+
+#======================================================#
+#                    IAM Policy Version
+#======================================================#
+
+resource "aws_s3_bucket" "bucket_for_policy_version_1" {
+  bucket        = "bucket-for-policy-version-1-${terraform.env}.chef.io"
+  acl           = "public-read"
+}
+
+resource "aws_s3_bucket" "bucket_for_policy_version_2" {
+  bucket        = "bucket-for-policy-version-2-${terraform.env}.chef.io"
+  acl           = "public-read"
+}
+
+resource "aws_s3_bucket" "bucket_for_policy_version_3" {
+  bucket        = "bucket-for-policy-version-3-${terraform.env}.chef.io"
+  acl           = "public-read"
+}
+
+resource "aws_iam_user" "iam_user_for_policy_version_2" {
+    name = "${terraform.env}.iam_user_for_policy_version_2"
+}
+
+resource "aws_iam_user" "iam_user_for_policy_version_1" {
+    name = "${terraform.env}.iam_user_for_policy_version_1"
+}
+
+data "aws_iam_policy_document" "iam_policy_document_1" {
+
+  statement {
+    actions = [
+      "s3:ListAllMyBuckets",
+    ]
+
+    resources = [
+      "arn:aws:s3:::${aws_s3_bucket.bucket_for_policy_version_1.bucket}",
+    ]
+  }
+}
+
+data "aws_iam_policy_document" "iam_policy_document_2" {
+
+  statement {
+    sid = "SidForPolicyDocument2"
+    actions = [
+      "s3:ListAllMyBuckets",
+      "s3:GetBucketLocation",
+      "sts:AssumeRole",
+    ]
+    
+    # not_actions = [
+    #   "s3:GetObject",
+    # ]
+
+    resources = [
+      "arn:aws:s3:::${aws_s3_bucket.bucket_for_policy_version_1.bucket}",
+      "arn:aws:s3:::${aws_s3_bucket.bucket_for_policy_version_2.bucket}",
+    ]
+    
+    # not_resources = [
+    #   "arn:aws:s3:::${aws_s3_bucket.bucket_for_policy_version_3.bucket}",
+    # ]
+    
+    # principals {
+    #   type        = "Service"
+    #   identifiers = ["ec2.amazonaws.com",]
+    # }
+    
+    principals {
+      type        = "AWS"
+      identifiers = ["${aws_iam_user.iam_user_for_policy_version_1.arn}",]
+    }
+    
+    # not_principals {
+    #   type        = "Service"
+    #   identifiers = ["ec2.amazonaws.com",]
+    # }
+    
+    condition {
+      test     = "StringLike"
+      variable = "s3:acl"
+
+      values = [
+        "public-read"
+      ]
+    }
+  }
+}
+
+resource "aws_iam_policy" "iam_policy_for_policy_version_1" {
+  name   = "iam_policy_for_policy_version_1"
+  path   = "/"
+  policy = "${data.aws_iam_policy_document.iam_policy_document_1.json}"
+}
+
+resource "aws_iam_policy" "iam_policy_for_policy_version_2" {
+  name   = "iam_policy_for_policy_version_2"
+  path   = "/"
+  policy = "${data.aws_iam_policy_document.iam_policy_document_2.json}"
+}
+
+output "iam_user_for_policy_version_1" {
+  value = "${aws_iam_user.iam_user_for_policy_version_1.arn}"
+}
+
+output "iam_user_for_policy_version_2" {
+  value = "${aws_iam_user.iam_user_for_policy_version_2.arn}"
+}
+
+output "iam_policy_for_policy_version" {
+  value = "${aws_iam_policy.iam_policy_for_policy_version_1.arn}"
+}
+
+output "iam_policy_for_policy_version_2" {
+  value = "${aws_iam_policy.iam_policy_for_policy_version_2.arn}"
+}
+
+output "bucket_for_policy_version_1" {
+  value = "${aws_s3_bucket.bucket_for_policy_version_1.arn}"
+}
+
+output "bucket_for_policy_version_2" {
+  value = "${aws_s3_bucket.bucket_for_policy_version_2.arn}"
+}
