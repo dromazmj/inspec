@@ -190,6 +190,7 @@ class MockLoader
       '/fakepath/fakefile' => emptyfile.call,
       'C:/fakepath/fakefile' => emptyfile.call,
       '/etc/cron.d/crondotd' => mockfile.call('crondotd'),
+      '/etc/syslog-ng/syslog-ng.conf' => mockfile.call('syslog-ng.conf'),
     }
 
     # create all mock commands
