@@ -3,27 +3,31 @@
 require 'helper'
 require 'inspec/resource'
 
-describe 'Inspec::Resources::Rsyslog' do
-  let(:rsyslog_conf) { load_resource('rsyslog_conf') }
-
-  it 'reads the rsyslog_cong with all referenced include calls' do
-    _(rsyslog_conf.selectors).must_be_kind_of Hash
-
-    # verify parses local selector
-    _(rsyslog_conf.selectors[:local_selectors]).must_include({facility: 'kern', priority: '*', destination: '/var/adm/kernel'})
-
-    # verify parses local selector
-    _(rsyslog_conf.selectors[:remote_selectors]).must_include({facility: '*', priority: '*', protocol: '@@', destination: 'finlandia', port: '1514'})
-    
-    # verify parses local selector
-    _(rsyslog_conf.selectors[:database_selectors]).must_include({facility: '*', priority: '*', dbhost: 'dbhost', dbname: 'dbname', dbuser: 'dbuser', dbpassword: 'dbpassword'})
-    # {:facility=>"*", :priority=>"*", :dbhost=>"dbhost,", :dbname=>"dbname,", :dbuser=>"dbuser,", :dbpassword=>"dbpassword"}}
-
+describe 'Inspec::Resources::Rsyslog' do  
+  describe 'RsyslogConf Paramaters' do
+    rsyslog_conf = load_resource('rsyslog_conf')
+    it 'Verify rsyslog_conf filtering by `selector_type` local'  do
+      entries = rsyslog_conf.where { selector_type == 'local' }
+      _(entries.facilities).must_equal ['*', 'kern', 'kern', 'kern'] 
+      _(entries.priorities).must_equal ['=crit', '*', 'crit', 'info']
+      _(entries.destinations).must_equal ['/var/adm/critical', '/var/adm/kernel', '/dev/console', '/var/adm/kernel-info']
+    end
+    it 'Verify rsyslog_conf filtering by `selector_type` remote'  do
+      entries = rsyslog_conf.where { selector_type == 'remote' }
+      _(entries.facilities).must_equal ['kern', '*', '*']
+      _(entries.priorities).must_equal ['crit', '*', '*']
+      _(entries.protocols).must_equal ['udp', 'tcp', 'udp']
+      _(entries.destinations).must_equal ['finlandia', 'finlandia', 'finlandia']
+      _(entries.ports).must_include '1514'
+    end
+    it 'Verify rsyslog_conf filtering by `selector_type` database'  do
+      entries = rsyslog_conf.where { selector_type == 'database' }
+      _(entries.facilities).must_equal ['*']
+      _(entries.priorities).must_equal ['*']
+      _(entries.dbhosts).must_equal ['dbhost']
+      _(entries.dbnames).must_equal ['dbname']
+      _(entries.dbusers).must_equal ['dbuser']
+      _(entries.dbpasswords).must_equal ['dbpassword']
+    end
   end
-  
-  # it 'skips the resource if it cannot parse the config' do
-  #   resource = MockLoader.new(:ubuntu1404).load_resource('nginx_conf', '/etc/nginx/failed.conf')
-  #   _(resource.params).must_equal({})
-  #   _(resource.resource_exception_message).must_equal "Cannot parse NginX config in /etc/nginx/failed.conf."
-  # end
 end

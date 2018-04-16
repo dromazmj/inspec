@@ -49,8 +49,8 @@ class RsyslogParser < Parslet::Parser
   }
   
   rule(:protocol) { (str('@').repeat(1,2)).as(:protocol) }
-  rule(:local_destination) { (str('@').absent? >> str('>').absent? >> (newline.absent? >> any).repeat).as(:local_destination) }
-  rule(:remote_destination) { (((colon.absent? >> newline.absent?) >> any).repeat).as(:remote_destination) }
+  rule(:local_destination) { (str('@').absent? >> str('>').absent? >> (newline.absent? >> any).repeat).as(:destination) }
+  rule(:remote_destination) { (((colon.absent? >> newline.absent?) >> any).repeat).as(:destination) }
   rule(:facility) { ((dot.absent? >> any).repeat).as(:facility) }
   rule(:priority) { ((space.absent? >> any).repeat).as(:priority) }
   rule(:port) { (((newline.absent? >> semicolon.absent?) >> match['0-9']).repeat).as(:port) }
@@ -73,55 +73,26 @@ class RsyslogParser < Parslet::Parser
 end
 
 class RsyslogTransform < Parslet::Transform
-  rule(local_selector: subtree(:local_selector)) { {
-    local_selector: {facility: local_selector[:facility].to_s, 
-      priority: local_selector[:priority].to_s, 
-      destination: local_selector[:local_destination].to_s} } }
-  
-  rule(remote_selector: subtree(:remote_selector)) { {
-    remote_selector: {facility: remote_selector[:facility].to_s, 
-      priority: remote_selector[:priority].to_s, 
-      protocol: remote_selector[:protocol].to_s,
-      destination: remote_selector[:remote_destination].to_s} } }
-  
-  rule(remote_selector: subtree(:remote_selector)) { {
-    remote_selector: {facility: remote_selector[:facility].to_s, 
-      priority: remote_selector[:priority].to_s, 
-      protocol: remote_selector[:protocol].to_s,
-      destination: remote_selector[:remote_destination].to_s, 
-      port: remote_selector[:port].to_s,} } }
-  
-  rule(database_selector: subtree(:database_selector)) { {
-    database_selector: {facility: database_selector[:facility].to_s, 
-      priority: database_selector[:priority].to_s, 
-      dbhost: database_selector[:dbhost].to_s, 
-      dbname: database_selector[:dbname].to_s, 
-      dbuser: database_selector[:dbuser].to_s, 
-      dbpassword: database_selector[:dbpassword].to_s} } }
+  rule(local_selector: subtree(:local_selector)) { {selector_type: 'local'}.merge(local_selector.each {|key, val| local_selector[key] = val.to_s}) }
+  rule(remote_selector: subtree(:remote_selector)) { {selector_type: 'remote'}.merge(remote_selector.each {|key, val| remote_selector[key] = val.to_s}) }
+  rule(database_selector: subtree(:database_selector)) { {selector_type: 'database'}.merge(database_selector.each {|key, val| database_selector[key] = val.to_s}) }
 end
 
 class RsyslogConfig
   def self.parse(content)
     lex = RsyslogParser.new.parse(content)
     tree = RsyslogTransform.new.apply(lex)
-    group_selectors(tree)
+    tree = transform_protocol(tree)
   rescue Parslet::ParseFailed => err
     puts err.parse_failure_cause.ascii_tree
     raise "Failed to parse Rsyslog config: #{err}"
   end
   
-  def self.group_selectors(tree)
-    selectors = {
-      local_selectors: [],
-      remote_selectors: [],
-      database_selectors: [],
-    }
-    tree.each do |selector|
-      selectors[:local_selectors] << selector[:local_selector] if selector[:local_selector]
-      selectors[:remote_selectors] << selector[:remote_selector] if selector[:remote_selector]
-      selectors[:database_selectors] << selector[:database_selector] if selector[:database_selector]
+  def self.transform_protocol(tree)
+    tree.each_with_index do |hash,i|
+      if hash.has_key?(:protocol)
+        tree[i][:protocol] = (tree[i][:protocol] == '@' ? 'udp' : 'tcp')
+      end
     end
-    selectors
   end
-    
 end

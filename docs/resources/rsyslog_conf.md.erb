@@ -1,0 +1,85 @@
+---
+title: About the rsyslog_conf Resource
+platform: linux
+---
+
+# rsyslog_conf
+
+Use the `rsyslog_conf` InSpec resource to test configuration data for the rsyslog service located at `/etc/rsyslog.conf` on Linux platforms.
+
+**Stability: Experimental**
+
+<br>
+
+## Syntax
+
+An `rsyslog_conf` resource block declares the client rsyslog configuration data to be tested:
+
+    describe rsyslog_conf do
+      # test if rsyslog sends messages to a remote server
+      it { should be_sending_to_remote_server }
+    end
+
+where
+
+* `selector_type` filters selectors based on the given type of either `local`, `remote`, or `database`.
+* `facility` filters selectors based on its facility.
+* `priority` filters selectors based on its priority.
+
+<br>
+
+## Examples
+
+The following examples show how to use this InSpec audit resource.
+
+### Test that rsyslog is sending to a remote server
+
+    describe rsyslog_conf do
+      it { should be_sending_to_remote_server }
+    end
+
+Use the where clause on its `local` property to match a property to one or more local selectors in the file.
+
+    describe rsyslog_conf.where {selector_type == 'local'} do
+      its('destination') { should include '/path/to/dest/file' }
+    end
+
+<br>
+
+## Properties
+
+    'selector_type', 'facility', 'priority'
+
+<br>
+
+## Property Examples
+
+### selector\_type
+
+`selector_type` returns a list containing all selectors that are of a given type of either `local`, `remote`, or `database`
+
+    describe rsyslog_conf.where { selector_type == 'remote' } do
+      its('daemon') { should eq ['vsftpd', 'sshd'] }
+    end
+
+### facility
+
+`client_list` returns a 2d string array where each entry contains the clients specified for the rule.
+
+    describe etc_hosts_allow.where { daemon == 'sshd' } do
+      its('client_list') { should include ['192.168.0.0/16', '[abcd::0000:1234]'] }
+    end
+
+### priority
+
+`options` returns a 2d string array where each entry contains any options specified for the rule.
+
+    describe etc_hosts_allow.where { daemon == 'sshd' } do
+      its('options') { should include ['deny', 'echo "REJECTED"'] }
+    end
+
+<br>
+
+
+
+
