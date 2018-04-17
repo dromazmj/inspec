@@ -7,11 +7,13 @@ require 'utils/syslog_ng_parser'
 class SyslogNGConf < Inspec.resource(1)
   name 'syslog_ng_conf'
   supports platform: 'linux'
-  desc ''
+  desc 'This resources is used for testing against the settings of the syslog-ng.conf file.'
   example "
-    
+    describe syslog_ng_conf('/etc/syslog-ng/syslog-ng.conf') do
+      it { should be_sending_to_remote_server }
+    end
   "
-
+ 
   attr_reader :params
 
   include CommentParser
