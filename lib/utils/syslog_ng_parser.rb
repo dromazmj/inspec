@@ -4,8 +4,9 @@
 require 'parslet'
 
 class SyslogNGParser < Parslet::Parser
-  root :outermost
+  root :beginning
   # only designed for rabbitmq config files for now:
+  rule(:beginning) { str('@') >> (match["\n\r"].absent? >> any).repeat >> outermost}
   rule(:outermost) { filler? >> section.repeat }
 
   rule(:filler?) { one_filler.repeat }
@@ -14,21 +15,21 @@ class SyslogNGParser < Parslet::Parser
   rule(:comment) { str('#') >> (match["\n\r"].absent? >> any).repeat }
 
   rule(:parameter) {
-    (identifier >> str('(') >>  options.as(:args)).as(:parameter) >> str(');') >> filler?
+    (identifier >>  str(')').maybe >> options.as(:args)).as(:parameter) >> str(');') >> filler?
   }
 
   rule(:identifier) {
-    ((match['\s{('].absent? >> match['\D']).repeat).as(:identifier) >> space.repeat
+    ((match['\s{('].absent? >> match['\S']).repeat).as(:identifier) >> space.repeat
   }
   
   rule(:option) {
     ((match['\s'].absent? >> str(');').absent? >> any) >> (
       match['\s'].absent? >> str(');').absent? >> any
-    ).repeat).as(:option) >> filler?
+    ).repeat).as(:option) >> space.repeat
   }
 
   rule(:options) {
-    option.repeat >> filler?
+    option.repeat >> space.repeat
   }
 
   rule(:section) {
@@ -49,6 +50,7 @@ end
 class SyslogNGConfig
   def self.parse(content)
     lex = SyslogNGParser.new.parse(content)
+    puts lex
     tree = SyslogNGTransform.new.apply(lex)
   rescue Parslet::ParseFailed => err
     puts err.parse_failure_cause.ascii_tree
