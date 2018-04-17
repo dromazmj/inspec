@@ -1,6 +1,5 @@
 # encoding: utf-8
-# author: Dominik Richter
-# author: Christoph Hartmann
+# author: Matthew Dromazos
 
 require 'parslet'
 
@@ -14,54 +13,37 @@ class SyslogNGParser < Parslet::Parser
   rule(:space)   { match('\s+') }
   rule(:comment) { str('#') >> (match["\n\r"].absent? >> any).repeat }
 
-  rule(:option) {
-    (identifier >> values.maybe.as(:args)).as(:assignment) >> str(';') >> filler?
-  }
-
-  rule(:standard_identifier) {
-    (match('[a-zA-Z]') >> match('\S').repeat).as(:identifier) >> space >> space.repeat
-  }
-
-  rule(:quoted_identifier) {
-    str('"') >> (str('"').absent? >> any).repeat.as(:identifier) >> str('"') >> space.repeat
+  rule(:parameter) {
+    (identifier >> str('(') >>  options.as(:args)).as(:parameter) >> str(');') >> filler?
   }
 
   rule(:identifier) {
-    standard_identifier | quoted_identifier
-  }
-
-  rule(:value) {
-    ((match('[#;{]').absent? >> any) >> (
-      str('\\') >> any | match('[#;{]|\s').absent? >> any
-    ).repeat).as(:value) >> space.repeat
-  }
-
-  rule(:values) {
-    value.repeat >> space.maybe
+    ((match['\s{('].absent? >> match['\D']).repeat).as(:identifier) >> space.repeat
   }
   
-  rule(:type) {
-    str('source') |
-    str('destination') | 
-    str('log') |
-    str('filter') |
-    str('parser') |
-    str('rewrite') |
-    str('template')
+  rule(:option) {
+    ((match['\s'].absent? >> str(');').absent? >> any) >> (
+      match['\s'].absent? >> str(');').absent? >> any
+    ).repeat).as(:option) >> filler?
+  }
+
+  rule(:options) {
+    option.repeat >> filler?
   }
 
   rule(:section) {
-    type.as(:section) >> identifier.maybe.as(:identifier) >> str('{') >> filler? >> option.repeat.as(:expressions) >> str('};') >> filler?
+    identifier.as(:type) >> filler? >> identifier >> str('{') >> filler? >> parameter.repeat(1).as(:parameters) >> str('};') >> filler?
   }
 end
 
 class SyslogNGTransform < Parslet::Transform
   Group = Struct.new(:type, :id, :body)
-  Exp = Struct.new(:key, :vals)
-
-  rule(section: { identifier: simple(:x) }, args: subtree(:y), expressions: subtree(:z)) { Group.new(x.to_s, y, z) }
-  rule(option: { identifier: simple(:x), args: subtree(:y) }) { Exp.new(x.to_s, y) }
-  rule(value: simple(:x)) { x.to_s }
+  Option = Struct.new(:name, :parameters)
+  
+  rule(type: { identifier: simple(:x) }, identifier: simple(:y), parameters: subtree(:z)) { Group.new(x.to_s, y, z) }
+  rule(type: { identifier: simple(:x) }, identifier: sequence(:y), parameters: subtree(:z)) { Group.new(x.to_s, nil, z) }
+  rule(parameter: { identifier: simple(:x), args: subtree(:y) }) { Option.new(x.to_s, y) }
+  rule(option: simple(:x)) { x.to_s }
 end
 
 class SyslogNGConfig
