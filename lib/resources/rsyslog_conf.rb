@@ -49,8 +49,8 @@ class RsyslogConf < Inspec.resource(1)
   
   # Matcher to test if there is any selectors that go to a remote system.
   def sending_to_remote_server(opts = {})
-    !@selectors[:remote_selectors].empty?
-    @selectors.include?({facility: facility, priority: priority, server: server, port: port}) if opts != {}
+    !@selectors.detect {|x| x[:selector_type] == 'remote'}.nil?
+    #@selectors.include?({facility: facility, priority: priority, server: server, port: port}) if opts != {}
   end
   
   private

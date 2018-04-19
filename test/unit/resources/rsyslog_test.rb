@@ -6,6 +6,10 @@ require 'inspec/resource'
 describe 'Inspec::Resources::Rsyslog' do  
   describe 'RsyslogConf Paramaters' do
     rsyslog_conf = load_resource('rsyslog_conf')
+    it 'Verify rsyslog_conf property sending_to_remote_server'  do
+      _(rsyslog_conf.sending_to_remote_server).must_equal true
+    end
+    
     it 'Verify rsyslog_conf filtering by `selector_type` local'  do
       entries = rsyslog_conf.where { selector_type == 'local' }
       _(entries.facilities).must_equal ['*', 'kern', 'kern', 'kern'] 
